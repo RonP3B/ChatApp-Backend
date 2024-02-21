@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "cockroachdb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String @id @default(uuid()) 
+  avatar              String
+  username            String @unique
+  email               String
+  password            String
+  isActive            Boolean @default(false)
+  isOnline            Boolean @default(false)
+  recoveryCode        String?
+  recoveryCodeExpires DateTime?
+  adminRooms          Room[] @relation("admin") // Many to many implicit realation (user-room) 
+  rooms               Room[] @relation("participant") // Many to many implicit realation (user-room)
+  messages            Message[] // One to many relation (user-message)
+  lastCheckedAtByRoom RoomLastChecked[] // One to many relation (user-roomLastChecked)
+}
+
+model Room {
+  id                 String @id @default(uuid()) 
+  name               String?
+  isGroup            Boolean
+  groupImage         String?
+  lastMessage        String?
+  lastMessageDate    DateTime?  
+  admins             User[] @relation("admin") // Many to many implicit realation (user-room) 
+  participants       User[] @relation("participant") // Many to many implicit realation (user-room)
+  messages           Message[] // One to many relation (room-message)
+  lastCheckedByUsers RoomLastChecked[] // One to many relation (room-roomLastChecked)
+}
+
+model Message {
+  id          String  @id @default(uuid()) 
+  content     String
+  date        DateTime @default(now())
+  messageType MessageType
+  // One to many relation (user-message)
+  sender      User @relation(fields: [senderId], references: [id])
+  senderId    String
+  // One to many relation (user-message)
+  room        Room @relation(fields: [roomId], references: [id])
+  roomId      String
+}
+
+model RoomLastChecked {
+  lastChecked DateTime
+  // One to many relation (user-roomLastChecked)
+  user        User @relation(fields: [userId], references: [id])
+  userId      String
+  // One to many relation (room-roomLastChecked)
+  room        Room @relation(fields: [roomId], references: [id])
+  roomId      String
+  @@unique([userId, roomId])
+}
+
+enum MessageType {
+  TEXT
+  VIDEO
+  AUDIO
+  IMAGE
+}
